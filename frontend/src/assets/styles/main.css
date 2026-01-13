@@ -1,0 +1,139 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 主题色变量 */
+:root {
+  --el-color-primary: #409eff;
+  --el-color-success: #67c23a;
+  --el-color-warning: #e6a23c;
+  --el-color-danger: #f56c6c;
+  --el-color-info: #909399;
+}
+
+/* 通用样式 */
+.page-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #f5f7fa;
+}
+
+.card-container {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* 上传区域样式 */
+.upload-area {
+  border: 2px dashed #dcdfe6;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.upload-area:hover {
+  border-color: #409eff;
+}
+
+/* 文章内容样式 */
+.article-content {
+  line-height: 1.8;
+  color: #303133;
+}
+
+.article-content h1 {
+  font-size: 24px;
+  margin: 20px 0;
+  color: #303133;
+}
+
+.article-content h2 {
+  font-size: 20px;
+  margin: 16px 0;
+  color: #303133;
+}
+
+.article-content h3 {
+  font-size: 18px;
+  margin: 14px 0;
+  color: #606266;
+}
+
+.article-content p {
+  margin: 10px 0;
+  text-indent: 2em;
+}
+
+/* 思维导图样式 */
+.mindmap-container {
+  width: 100%;
+  height: 600px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* 时间线样式 */
+.timeline-container {
+  padding: 20px;
+}
+
+/* 概念图谱样式 */
+.knowledge-graph {
+  width: 100%;
+  height: 600px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* 空状态样式 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #909399;
+}
+
+.empty-state .icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.empty-state .text {
+  font-size: 14px;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 10px;
+  }
+
+  .card-container {
+    padding: 15px;
+  }
+}
