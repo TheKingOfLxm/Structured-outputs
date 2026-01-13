@@ -247,13 +247,21 @@ class AIGenerator:
 
 要求：
 1. 返回标准JSON格式
-2. 包含nodes（节点数组）和links（关系数组）
-3. 每个节点包含：id, name, category（类别编号）
-4. 每条关系包含：source（源节点id）, target（目标节点id）
-5. 展示论文中的核心概念及其关系
-6. 只返回JSON数据，不要其他说明文字
+2. 包含nodes（节点数组）和links（关系数组）和categories（类别数组）
+3. 每个节点必须包含：id（字符串类型，如"0", "1", "2"）, name（节点名称）, category（整数类别编号）, symbolSize（可选，节点大小）
+4. 每条关系必须包含：source（字符串类型的源节点id，如"0"）, target（字符串类型的目标节点id，如"1"）
+5. categories数组包含各个类别，每个类别有name字段
+6. 提取论文中的核心概念、方法、技术术语等作为节点
+7. 只返回JSON数据，不要其他说明文字
 
-图谱数据："""
+示例格式：
+{{
+  "nodes": [{{"id": "0", "name": "核心概念", "category": 0, "symbolSize": 70}}, {{"id": "1", "name": "子概念", "category": 1, "symbolSize": 50}}],
+  "links": [{{"source": "0", "target": "1"}}],
+  "categories": [{{"name": "核心"}}, {{"name": "相关"}}]
+}}
+
+请生成概念图谱JSON："""
 
         messages = [{"role": "user", "content": prompt}]
         response = self._call_api(messages)
@@ -264,17 +272,41 @@ class AIGenerator:
             elif "```" in response:
                 response = response.split("```")[1].split("```")[0].strip()
 
-            return json.loads(response)
+            result = json.loads(response)
+
+            # 确保id和source/target都是字符串
+            if "nodes" in result:
+                for node in result["nodes"]:
+                    if "id" in node and not isinstance(node["id"], str):
+                        node["id"] = str(node["id"])
+                    if "symbolSize" not in node:
+                        node["symbolSize"] = 50
+
+            if "links" in result:
+                for link in result["links"]:
+                    if "source" in link and not isinstance(link["source"], str):
+                        link["source"] = str(link["source"])
+                    if "target" in link and not isinstance(link["target"], str):
+                        link["target"] = str(link["target"])
+
+            # 确保categories存在
+            if "categories" not in result:
+                result["categories"] = [{"name": "概念"}]
+
+            return result
         except:
+            # 如果解析失败，返回默认结构
             return {
                 "nodes": [
-                    {"id": "0", "name": "核心概念", "category": 0},
-                    {"id": "1", "name": "相关概念1", "category": 1},
-                    {"id": "2", "name": "相关概念2", "category": 1}
+                    {"id": "0", "name": paper_info.get('title', '核心概念')[:20], "category": 0, "symbolSize": 70},
+                    {"id": "1", "name": "研究方法", "category": 1, "symbolSize": 50},
+                    {"id": "2", "name": "实验结果", "category": 1, "symbolSize": 50},
+                    {"id": "3", "name": "主要贡献", "category": 1, "symbolSize": 50}
                 ],
                 "links": [
                     {"source": "0", "target": "1"},
-                    {"source": "0", "target": "2"}
+                    {"source": "0", "target": "2"},
+                    {"source": "0", "target": "3"}
                 ],
                 "categories": [
                     {"name": "核心"},
@@ -282,21 +314,54 @@ class AIGenerator:
                 ]
             }
 
-    def generate_summary(self, paper_info: Dict) -> str:
-        """生成核心观点总结"""
-        prompt = f"""请基于以下论文信息，生成一个核心观点总结。
+    def generate_summary(self, paper_info: Dict) -> Dict:
+        """生成论文阅读报告（八元组）"""
+        prompt = f"""请基于以下论文信息，生成一个结构化的论文阅读报告，必须返回标准JSON格式，包含以下八个字段：
 
 论文标题: {paper_info.get('title', '')}
 作者: {paper_info.get('authors', '')}
 摘要: {paper_info.get('abstract', '')}
 
-要求：
-1. 总结论文的主要贡献和创新点
-2. 提炼核心观点
-3. 条理清晰，分点说明
-4. 字数控制在500字以内
+要求输出JSON格式（只返回JSON，不要其他说明）：
+{{
+  "abstract": "论文摘要概括",
+  "keywords": "关键词，用逗号分隔",
+  "researchQuestion": "研究问题",
+  "method": "研究方法",
+  "results": "主要研究结果",
+  "discussion": "讨论与分析",
+  "innovation": "创新点",
+  "technicalIssues": "技术问题或局限性"
+}}
 
-核心观点总结："""
+请生成论文阅读报告JSON："""
 
         messages = [{"role": "user", "content": prompt}]
-        return self._call_api(messages)
+        response = self._call_api(messages)
+
+        try:
+            # 尝试解析JSON
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0].strip()
+            elif "```" in response:
+                response = response.split("```")[1].split("```")[0].strip()
+
+            result = json.loads(response)
+            # 确保所有字段都存在
+            required_fields = ['abstract', 'keywords', 'researchQuestion', 'method', 'results', 'discussion', 'innovation', 'technicalIssues']
+            for field in required_fields:
+                if field not in result:
+                    result[field] = ""
+            return result
+        except:
+            # 如果解析失败，返回默认结构
+            return {
+                "abstract": paper_info.get('abstract', '')[:200] + "...",
+                "keywords": "",
+                "researchQuestion": "",
+                "method": "",
+                "results": "",
+                "discussion": "",
+                "innovation": "",
+                "technicalIssues": ""
+            }

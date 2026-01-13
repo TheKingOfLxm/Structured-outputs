@@ -75,6 +75,77 @@
           </el-collapse>
         </el-card>
 
+        <!-- 论文阅读报告（八元组） -->
+        <el-card v-if="summaryReport" class="summary-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>论文阅读报告</span>
+              <el-button type="primary" link @click="generateSummary" :loading="generatingSummary">
+                <el-icon><Refresh /></el-icon>
+                重新生成
+              </el-button>
+            </div>
+          </template>
+
+          <div class="summary-content">
+            <div class="summary-item">
+              <h4 class="summary-label">摘要</h4>
+              <p class="summary-text">{{ summaryReport.abstract || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">关键词</h4>
+              <p class="summary-text">{{ summaryReport.keywords || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">研究问题</h4>
+              <p class="summary-text">{{ summaryReport.researchQuestion || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">方法</h4>
+              <p class="summary-text">{{ summaryReport.method || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">结果</h4>
+              <p class="summary-text">{{ summaryReport.results || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">讨论</h4>
+              <p class="summary-text">{{ summaryReport.discussion || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">创新点</h4>
+              <p class="summary-text">{{ summaryReport.innovation || '-' }}</p>
+            </div>
+            <el-divider />
+            <div class="summary-item">
+              <h4 class="summary-label">技术问题</h4>
+              <p class="summary-text">{{ summaryReport.technicalIssues || '-' }}</p>
+            </div>
+          </div>
+        </el-card>
+
+        <!-- 论文阅读报告空状态 -->
+        <el-card v-else class="summary-empty-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>论文阅读报告</span>
+            </div>
+          </template>
+          <el-empty description="暂无论文阅读报告">
+            <el-button type="primary" @click="generateSummary" :loading="generatingSummary">
+              生成论文阅读报告
+            </el-button>
+          </el-empty>
+        </el-card>
+
         <!-- 生成内容快捷入口 -->
         <el-card class="generate-card">
           <template #header>
@@ -128,15 +199,18 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { paperApi } from '@/api'
+import { ChatDotRound } from '@element-plus/icons-vue'
+import { paperApi, generateApi } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(true)
 const reparsing = ref(false)
+const generatingSummary = ref(false)
 const paper = ref(null)
 const activeSections = ref([])
+const summaryReport = ref(null)
 
 const loadPaperDetail = async () => {
   loading.value = true
@@ -148,6 +222,38 @@ const loadPaperDetail = async () => {
     ElMessage.error('加载论文详情失败')
   } finally {
     loading.value = false
+  }
+}
+
+const loadSummaryReport = async () => {
+  try {
+    const res = await generateApi.getGenerateHistory(route.params.id)
+    const summaryItem = res.data.list?.find(item => item.type === 'summary')
+    if (summaryItem && summaryItem.content) {
+      try {
+        summaryReport.value = JSON.parse(summaryItem.content)
+      } catch (e) {
+        console.error('解析报告失败:', e)
+      }
+    }
+  } catch (error) {
+    console.error('加载报告失败:', error)
+  }
+}
+
+const generateSummary = async () => {
+  generatingSummary.value = true
+  try {
+    await generateApi.generateSummary({ paperId: route.params.id })
+    ElMessage.success('生成成功')
+    setTimeout(() => {
+      loadSummaryReport()
+    }, 1000)
+  } catch (error) {
+    console.error('生成失败:', error)
+    ElMessage.error('生成失败，请重试')
+  } finally {
+    generatingSummary.value = false
   }
 }
 
@@ -195,6 +301,7 @@ const formatDate = (date) => {
 
 onMounted(() => {
   loadPaperDetail()
+  loadSummaryReport()
 })
 </script>
 
@@ -352,5 +459,33 @@ onMounted(() => {
   font-size: 14px;
   color: #909399;
   margin: 0;
+}
+
+.summary-card,
+.summary-empty-card {
+  margin-bottom: 20px;
+}
+
+.summary-content {
+  padding: 10px 0;
+}
+
+.summary-item {
+  padding: 15px 0;
+}
+
+.summary-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 10px;
+}
+
+.summary-text {
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.8;
+  margin: 0;
+  white-space: pre-wrap;
 }
 </style>

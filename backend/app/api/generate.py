@@ -220,9 +220,9 @@ def generate_summary():
 
         result = generator.generate_summary(paper_info)
 
-        record.content = result
+        record.content = json.dumps(result, ensure_ascii=False)
         record.status = 'completed'
-        record.description = f'《{paper.title}》的核心观点总结'
+        record.description = f'《{paper.title}》的论文阅读报告'
 
         db.session.commit()
 
