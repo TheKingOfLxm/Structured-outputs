@@ -64,7 +64,7 @@ def upload_paper():
             paper.abstract = result.get('abstract', '')
             paper.keywords = result.get('keywords', '')
             paper.publish_date = result.get('publish_date', '')
-            paper.source = result.get('source', '')
+            paper.category = result.get('category', '未分类')
             paper.sections = result.get('sections', '')
             paper.status = 'parsed'
             paper.parse_time = datetime.utcnow()
@@ -218,7 +218,7 @@ def parse_paper(paper_id):
         paper.abstract = result.get('abstract', '')
         paper.keywords = result.get('keywords', '')
         paper.publish_date = result.get('publish_date', '')
-        paper.source = result.get('source', '')
+        paper.category = result.get('category', '未分类')
         paper.sections = result.get('sections', '')
         paper.status = 'parsed'
         paper.parse_time = datetime.utcnow()

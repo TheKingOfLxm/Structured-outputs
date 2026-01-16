@@ -36,7 +36,7 @@
             <el-descriptions :column="2" border class="info-table">
               <el-descriptions-item label="作者">{{ formatAuthors(paper.authors) }}</el-descriptions-item>
               <el-descriptions-item label="发布时间">{{ paper.publishDate || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="来源">{{ paper.source || '-' }}</el-descriptions-item>
+              <el-descriptions-item label="分类">{{ paper.category || '未分类' }}</el-descriptions-item>
               <el-descriptions-item label="上传时间">{{ formatDate(paper.uploadTime) }}</el-descriptions-item>
             </el-descriptions>
 

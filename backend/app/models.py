@@ -57,7 +57,7 @@ class Paper(db.Model):
     abstract = db.Column(db.Text, default='')
     keywords = db.Column(db.Text, default='')  # 存储为JSON字符串
     publish_date = db.Column(db.String(50), default='')
-    source = db.Column(db.String(200), default='')
+    category = db.Column('source', db.String(50), default='')  # 论文分类：计算机、物理、人文等
     sections = db.Column(db.Text, default='')  # 存储为JSON字符串
 
     # 状态
@@ -87,7 +87,7 @@ class Paper(db.Model):
             'keywords': self.keywords,
             'sections': self.sections,
             'publishDate': self.publish_date,
-            'source': self.source,
+            'category': self.category,
             'status': self.status,
             'uploadTime': self.upload_time.isoformat() if self.upload_time else None
         }

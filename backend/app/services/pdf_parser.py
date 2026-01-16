@@ -392,7 +392,7 @@ class PDFParser:
                 'keywords': ai_result.get('keywords', '[]'),
                 'sections': '[]',  # 章节暂时留空，可后续异步提取或在生成时动态生成
                 'publish_date': self._extract_date(full_text),
-                'source': self._extract_source(full_text)
+                'category': ai_result.get('category', '未分类')
             }
 
             # 调试日志
@@ -420,7 +420,7 @@ class PDFParser:
                 'keywords': '',
                 'sections': '',
                 'publish_date': '',
-                'source': '',
+                'category': '',
                 'error': f'内存不足: {str(e)}'
             }
 
@@ -433,7 +433,7 @@ class PDFParser:
                 'keywords': '',
                 'sections': '',
                 'publish_date': '',
-                'source': ''
+                'category': ''
             }
 
     def _extract_title(self, text: str) -> str:
@@ -760,23 +760,6 @@ class PDFParser:
 
         return ""
 
-    def _extract_source(self, text: str) -> str:
-        """提取来源（期刊/会议名称）"""
-        # 查找常见的期刊/会议模式
-        source_patterns = [
-            r'Proceedings\s+of\s+([^,\n]+)',
-            r'Published\s+in\s+([^,\n]+)',
-            r'Journal\s+of\s+([^,\n]+)',
-            r'([A-Z][A-Z\s]+Conference)',
-        ]
-
-        for pattern in source_patterns:
-            match = re.search(pattern, text)
-            if match:
-                return match.group(1).strip()
-
-        return ""
-
     def _extract_with_ai(self, text: str) -> Dict:
         """
         使用AI快速提取论文元数据（分步提取，20秒内完成）
@@ -879,7 +862,37 @@ class PDFParser:
             elapsed_2 = time.time() - start_time
             print(f"[DEBUG] 第二步完成（摘要+关键词），耗时: {elapsed_2:.1f}秒")
 
-            print(f"[DEBUG] AI快速提取完成，总耗时约: {elapsed_1 + elapsed_2:.1f}秒")
+            # ========== 第三步：提取论文分类（5秒） ==========
+            start_time = time.time()
+
+            prompt_3 = f"""判断论文的学科分类。
+
+文本（标题和摘要）：
+{title[:200]}
+{abstract[:500]}
+
+请从以下分类中选择最合适的一个：
+计算机、物理、化学、生物、医学、数学、经济、管理、人文、社科、工程、其他
+
+返回JSON：{{"category":"分类名称"}}"""
+
+            response_3 = client.chat.completions.create(
+                model="glm-4-flash",
+                messages=[{"role": "user", "content": prompt_3}],
+                temperature=0.1,
+                max_tokens=50,
+                timeout=10
+            )
+
+            result_3 = json.loads(self._clean_json_response(response_3.choices[0].message.content))
+            category = result_3.get('category', '').strip()
+            if category:
+                cleaned_result['category'] = category
+
+            elapsed_3 = time.time() - start_time
+            print(f"[DEBUG] 第三步完成（分类），耗时: {elapsed_3:.1f}秒")
+
+            print(f"[DEBUG] AI快速提取完成，总耗时约: {elapsed_1 + elapsed_2 + elapsed_3:.1f}秒")
             return cleaned_result
 
         except Exception as e:
