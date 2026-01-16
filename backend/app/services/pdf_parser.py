@@ -789,12 +789,15 @@ class PDFParser:
             start_time = time.time()
             text_sample_1 = text[:1500] if len(text) > 1500 else text
 
-            prompt_1 = f"""提取论文的标题和作者。
+            prompt_1 = f"""Extract the title and authors from the paper below.
+The paper may be in Chinese, English, or bilingual.
+- If in Chinese: keep original
+- If in English or bilingual: translate to Chinese
 
-文本：
+Text:
 {text_sample_1}
 
-返回JSON：{{"title":"标题","authors":["作者1","作者2"]}}"""
+返回JSON：{{"title":"论文标题","authors":["作者1","作者2"]}}"""
 
             response_1 = client.chat.completions.create(
                 model="glm-4-flash",
@@ -829,9 +832,12 @@ class PDFParser:
             start_time = time.time()
             text_sample_2 = text[:3500] if len(text) > 3500 else text
 
-            prompt_2 = f"""提取论文的摘要和关键词。
+            prompt_2 = f"""Extract the abstract and keywords from the paper below.
+The paper may be in Chinese, English, or bilingual.
+- If in Chinese: keep original
+- If in English or bilingual: translate to Chinese
 
-文本：
+Text:
 {text_sample_2}
 
 返回JSON：{{"abstract":"摘要内容","keywords":["关键词1","关键词2"]}}"""
@@ -866,12 +872,13 @@ class PDFParser:
             start_time = time.time()
 
             prompt_3 = f"""判断论文的学科分类。
+论文可能是中文、英文或双语。
 
 文本（标题和摘要）：
 {title[:200]}
 {abstract[:500]}
 
-请从以下分类中选择最合适的一个：
+请从以下分类中选择最合适的一个（仅返回中文名称）：
 计算机、物理、化学、生物、医学、数学、经济、管理、人文、社科、工程、其他
 
 返回JSON：{{"category":"分类名称"}}"""
