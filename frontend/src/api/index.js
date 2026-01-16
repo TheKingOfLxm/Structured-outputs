@@ -133,6 +133,15 @@ export const generateApi = {
     })
   },
 
+  // 生成论文评审报告
+  generateReview(data) {
+    return request({
+      url: '/generate/review',
+      method: 'post',
+      data
+    })
+  },
+
   // 获取生成历史
   getGenerateHistory(paperId) {
     return request({

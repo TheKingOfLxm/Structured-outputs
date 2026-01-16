@@ -1,9 +1,13 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from dotenv import load_dotenv
 from config import config
 from app.models import db
 import os
+
+# 加载环境变量
+load_dotenv()
 
 def create_app(config_name='development'):
     """创建Flask应用"""

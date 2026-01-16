@@ -46,7 +46,7 @@ class Paper(db.Model):
     __tablename__ = 'papers'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     filename = db.Column(db.String(255), nullable=False)
     filepath = db.Column(db.String(500), nullable=False)
     filesize = db.Column(db.Integer)
@@ -61,7 +61,7 @@ class Paper(db.Model):
     sections = db.Column(db.Text, default='')  # 存储为JSON字符串
 
     # 状态
-    status = db.Column(db.String(20), default='pending')  # pending, parsing, parsed, failed
+    status = db.Column(db.String(20), default='pending', index=True)  # pending, parsing, parsed, failed
     error_message = db.Column(db.Text, default='')
 
     # 时间
@@ -70,6 +70,11 @@ class Paper(db.Model):
 
     # 关系
     generate_records = db.relationship('GenerateRecord', backref='paper', lazy='dynamic', cascade='all, delete-orphan')
+
+    # 复合索引
+    __table_args__ = (
+        db.Index('idx_user_upload', 'user_id', 'upload_time'),
+    )
 
     def to_dict(self):
         """转换为字典"""
@@ -80,6 +85,7 @@ class Paper(db.Model):
             'authors': self.authors,
             'abstract': self.abstract,
             'keywords': self.keywords,
+            'sections': self.sections,
             'publishDate': self.publish_date,
             'source': self.source,
             'status': self.status,
@@ -106,6 +112,14 @@ class GenerateRecord(db.Model):
 
     # 时间
     create_time = db.Column(db.DateTime, default=datetime.utcnow)
+    duration = db.Column(db.Float, default=0)  # 生成耗时（秒）
+
+    # 复合索引 - 提升查询性能
+    __table_args__ = (
+        db.Index('idx_user_paper_type', 'user_id', 'paper_id', 'type'),
+        db.Index('idx_user_paper_status', 'user_id', 'paper_id', 'status'),
+        db.Index('idx_paper_type_time', 'paper_id', 'type', 'create_time'),
+    )
 
     def to_dict(self):
         """转换为字典"""
@@ -116,5 +130,6 @@ class GenerateRecord(db.Model):
             'content': self.content,
             'description': self.description,
             'status': self.status,
-            'createTime': self.create_time.isoformat() if self.create_time else None
+            'createTime': self.create_time.isoformat() if self.create_time else None,
+            'duration': self.duration
         }

@@ -77,16 +77,21 @@ const router = createRouter({
 })
 
 // 路由守卫
-// router.beforeEach((to, from, next) => {
-//   const token = localStorage.getItem('token')
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
 
-//   if (to.meta.requiresAuth && !token) {
-//     next('/login')
-//   } else if ((to.path === '/login' || to.path === '/register') && token) {
-//     next('/')
-//   } else {
-//     next()
-//   }
-// })
+  // 需要登录但没有token，跳转到登录页
+  if (to.meta.requiresAuth && !token) {
+    next('/login')
+  }
+  // 已登录但访问登录/注册页，跳转到首页
+  else if ((to.path === '/login' || to.path === '/register') && token) {
+    next('/')
+  }
+  // 其他情况正常放行
+  else {
+    next()
+  }
+})
 
 export default router

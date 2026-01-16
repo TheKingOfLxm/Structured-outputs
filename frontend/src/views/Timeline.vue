@@ -13,11 +13,11 @@
               <span>研究时间线</span>
             </div>
             <div class="header-actions">
-              <el-button @click="handleRegenerate" :loading="regenerating">
+              <el-button @click="handleRegenerate" :loading="regenerating" :disabled="loading || regenerating">
                 <el-icon><Refresh /></el-icon>
                 重新生成
               </el-button>
-              <el-button @click="handleExport">
+              <el-button @click="handleExport" :disabled="loading || regenerating || !timelineData.length">
                 <el-icon><Download /></el-icon>
                 导出
               </el-button>
@@ -106,6 +106,9 @@ const loadTimeline = async () => {
 }
 
 const handleRegenerate = async () => {
+  // 防止重复点击
+  if (regenerating.value) return
+
   regenerating.value = true
   try {
     await generateApi.generateTimeline({ paperId: route.params.id })

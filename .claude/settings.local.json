@@ -5,7 +5,8 @@
       "Bash(pip install:*)",
       "Bash(dir:*)",
       "Bash(npm create vite:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(\"D:\\\\结构化内容生成系统\\\\backend\\\\venv\\\\Scripts\\\\python.exe\":*)"
     ]
   }
 }
