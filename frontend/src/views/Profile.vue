@@ -79,6 +79,34 @@
             </div>
           </el-tab-pane>
 
+          <!-- AI模型设置 -->
+          <el-tab-pane label="AI模型设置" name="ai-model">
+            <div class="ai-model-section">
+              <div class="section-header">
+                <h3>选择AI模型</h3>
+                <p>不同的AI模型具有不同的性能和特点，请根据你的需求选择</p>
+              </div>
+
+              <el-radio-group v-model="selectedModel" @change="handleModelChange" class="model-group">
+                <el-radio v-for="model in aiModels" :key="model.id" :label="model.id" border class="model-option">
+                  <div class="model-info">
+                    <div class="model-name">{{ model.name }}</div>
+                    <div class="model-desc">{{ model.description }}</div>
+                    <div class="model-meta">
+                      <el-tag size="small" type="info">最大token: {{ model.maxTokens.toLocaleString() }}</el-tag>
+                    </div>
+                  </div>
+                  <el-icon v-if="model.isSelected" class="check-icon" :size="20"><CircleCheck /></el-icon>
+                </el-radio>
+              </el-radio-group>
+
+              <div class="model-tip">
+                <el-icon><InfoFilled /></el-icon>
+                <span>提示：模型切换后，所有AI生成功能将使用新选择的模型</span>
+              </div>
+            </div>
+          </el-tab-pane>
+
           <!-- 使用统计 -->
           <el-tab-pane label="使用统计" name="stats">
             <div class="stats-section">
@@ -135,6 +163,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { CircleCheck, InfoFilled } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { userApi } from '@/api'
 
@@ -172,6 +201,10 @@ const stats = ref({
 
 const chartRef = ref(null)
 let chart = null
+
+// AI模型相关
+const aiModels = ref([])
+const selectedModel = ref('')
 
 const rules = {
   email: [
@@ -256,6 +289,44 @@ const handleChangePassword = async () => {
   }
 }
 
+// 加载AI模型列表
+const loadAIModels = async () => {
+  try {
+    const res = await userApi.getAIModels()
+    aiModels.value = res.data.models
+    selectedModel.value = res.data.currentModel
+  } catch (error) {
+    console.error('加载模型列表失败:', error)
+    ElMessage.error('加载模型列表失败')
+  }
+}
+
+// 处理模型切换
+const handleModelChange = async (modelId) => {
+  try {
+    await userApi.setAIModel({ modelId })
+    ElMessage.success('AI模型切换成功')
+
+    // 更新选中状态
+    aiModels.value.forEach(model => {
+      model.isSelected = model.id === modelId
+    })
+
+    // 更新本地存储的用户信息
+    const savedUserInfo = localStorage.getItem('userInfo')
+    if (savedUserInfo) {
+      const userInfo = JSON.parse(savedUserInfo)
+      userInfo.aiModel = modelId
+      localStorage.setItem('userInfo', JSON.stringify(userInfo))
+    }
+  } catch (error) {
+    console.error('切换模型失败:', error)
+    ElMessage.error(error.response?.data?.message || '切换模型失败')
+    // 恢复之前的选择
+    loadAIModels()
+  }
+}
+
 const renderChart = () => {
   if (!chartRef.value) return
 
@@ -293,6 +364,7 @@ const renderChart = () => {
 
 onMounted(() => {
   loadUserInfo()
+  loadAIModels()
 
   window.addEventListener('resize', () => {
     chart?.resize()
@@ -350,6 +422,94 @@ onUnmounted(() => {
 
 .password-section {
   max-width: 500px;
+}
+
+.ai-model-section {
+  padding: 20px 0;
+}
+
+.section-header {
+  margin-bottom: 30px;
+}
+
+.section-header h3 {
+  font-size: 18px;
+  color: #303133;
+  margin: 0 0 10px;
+}
+
+.section-header p {
+  font-size: 14px;
+  color: #909399;
+  margin: 0;
+}
+
+.model-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.model-option {
+  position: relative;
+  padding: 20px;
+  border-radius: 8px;
+  transition: all 0.3s;
+  height: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.model-option:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.1);
+}
+
+.model-option.is-checked {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.model-info {
+  flex: 1;
+}
+
+.model-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.model-desc {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.model-meta {
+  display: flex;
+  gap: 8px;
+}
+
+.check-icon {
+  color: #67c23a;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.model-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 12px 16px;
+  background: #f4f4f5;
+  border-radius: 6px;
+  color: #909399;
+  font-size: 13px;
 }
 
 .stats-section {

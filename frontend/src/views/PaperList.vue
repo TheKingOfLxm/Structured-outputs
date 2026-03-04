@@ -61,6 +61,10 @@
               </div>
             </div>
             <div class="paper-actions">
+              <el-button type="warning" link @click.stop="goToAssistant(paper.id)">
+                <el-icon><Reading /></el-icon>
+                论文助手
+              </el-button>
               <el-button type="primary" link @click.stop="goToGenerate(paper.id)">
                 <el-icon><MagicStick /></el-icon>
                 生成内容
@@ -133,6 +137,10 @@ const goToUpload = () => {
 
 const goToDetail = (id) => {
   router.push(`/paper/${id}`)
+}
+
+const goToAssistant = (id) => {
+  router.push(`/assistant/${id}`)
 }
 
 const goToGenerate = (id) => {

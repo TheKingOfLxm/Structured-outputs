@@ -23,7 +23,8 @@ class AIGenerator:
         messages: List[Dict],
         model: str = "glm-4-flash",
         max_retries: int = 3,
-        timeout: int = 30
+        timeout: int = 30,
+        max_tokens: int = 2000
     ) -> str:
         """
         调用智谱AI API，带重试和超时机制
@@ -33,6 +34,7 @@ class AIGenerator:
             model: 模型名称
             max_retries: 最大重试次数（默认3次）
             timeout: 超时时间（秒，默认30秒）
+            max_tokens: 最大token数（默认2000）
 
         Returns:
             str: API响应内容
@@ -46,7 +48,7 @@ class AIGenerator:
             # 返回模拟数据用于测试
             return self._get_mock_response(messages)
 
-        print(f"[DEBUG] 调用智谱AI API，模型: {model}")
+        print(f"[DEBUG] 调用智谱AI API，模型: {model}, max_tokens: {max_tokens}")
         last_error = None
         for attempt in range(max_retries):
             try:
@@ -56,7 +58,7 @@ class AIGenerator:
                     model=model,
                     messages=messages,
                     temperature=0.7,
-                    max_tokens=2000,
+                    max_tokens=max_tokens,
                     timeout=timeout
                 )
 
@@ -382,12 +384,13 @@ class AIGenerator:
 
         return data
 
-    def generate_mindmap(self, paper_info: Dict) -> Dict:
+    def generate_mindmap(self, paper_info: Dict, model: str = "glm-4-flash") -> Dict:
         """
         生成思维导图 - 基于章节结构
 
         Args:
             paper_info: 包含title, abstract, sections等字段的论文信息
+            model: AI模型名称
 
         Returns:
             Dict: 思维导图结构，格式为 {"name": "根节点", "children": [...]}
@@ -490,12 +493,13 @@ class AIGenerator:
 
         return {"name": root_name, "children": children}
 
-    def generate_timeline(self, paper_info: Dict) -> List[Dict]:
+    def generate_timeline(self, paper_info: Dict, model: str = "glm-4-flash") -> List[Dict]:
         """
         生成时间线 - 基于论文实际章节内容
 
         Args:
             paper_info: 包含title, abstract, sections等字段的论文信息
+            model: AI模型名称
 
         Returns:
             List[Dict]: 时间线节点列表，每个节点包含time, title, description, keywords
@@ -552,12 +556,13 @@ class AIGenerator:
         except:
             return []
 
-    def generate_graph(self, paper_info: Dict) -> Dict:
+    def generate_graph(self, paper_info: Dict, model: str = "glm-4-flash") -> Dict:
         """
         生成概念图谱 - 从章节内容中提取核心概念
 
         Args:
             paper_info: 包含title, abstract, sections, keywords等字段的论文信息
+            model: AI模型名称
 
         Returns:
             Dict: 概念图谱，包含nodes（节点）、links（关系）、categories（类别）
@@ -664,7 +669,7 @@ class AIGenerator:
             ]
         }
 
-    def generate_summary(self, paper_info: Dict) -> Dict:
+    def generate_summary(self, paper_info: Dict, model: str = "glm-4-flash") -> Dict:
         """生成论文阅读报告（八元组）"""
         prompt = f"""请基于以下论文信息，生成一个结构化的论文阅读报告，必须返回标准JSON格式，包含以下八个字段：
 
@@ -716,12 +721,13 @@ class AIGenerator:
                 "technicalIssues": ""
             }
 
-    def generate_review(self, paper_info: Dict) -> Dict:
+    def generate_review(self, paper_info: Dict, model: str = "glm-4-flash") -> Dict:
         """
         生成论文评审报告（基于学术要素完整性评分）
 
         Args:
             paper_info: 包含title, authors, abstract, keywords的论文信息
+            model: AI模型名称
 
         Returns:
             Dict: 评审报告，包含各要素的评分和评语
@@ -832,3 +838,317 @@ class AIGenerator:
                 'suggestions': []
             }
 
+    def translate_paper(self, paper_info: Dict, target_lang: str = 'zh', model: str = "glm-4-flash") -> Dict:
+        """
+        翻译论文完整内容 - 返回对照翻译格式
+
+        Args:
+            paper_info: 包含title, abstract, sections等字段的论文信息
+            target_lang: 目标语言，'zh'为中文，'en'为英文
+            model: AI模型名称
+
+        Returns:
+            Dict: 包含originalSections（原文分页）和translatedContent（翻译内容）的字典
+        """
+        lang_name = '中文' if target_lang == 'zh' else '英文'
+
+        # 构建分段翻译prompt - 每段单独翻译并保持格式
+        sections_to_translate = []
+
+        # 添加标题
+        if paper_info.get('title'):
+            sections_to_translate.append({
+                'title': '论文标题',
+                'content': paper_info.get('title', '')
+            })
+
+        # 添加摘要
+        if paper_info.get('abstract'):
+            sections_to_translate.append({
+                'title': '摘要',
+                'content': paper_info.get('abstract', '')
+            })
+
+        # 添加关键词
+        if paper_info.get('keywords'):
+            keywords_str = paper_info.get('keywords', '')
+            if isinstance(keywords_str, list):
+                keywords_str = ', '.join(keywords_str)
+            if keywords_str:
+                sections_to_translate.append({
+                    'title': '关键词',
+                    'content': keywords_str
+                })
+
+        # 添加章节内容和PDF完整内容
+        sections = paper_info.get('sections', '')
+
+        # 从PDF文件中提取完整文本内容
+        filepath = paper_info.get('filepath', '')
+        has_pdf_content = False
+        pdf_total_pages = 0
+
+        print(f"[DEBUG] 翻译开始 - filepath={filepath}")
+
+        if filepath and os.path.exists(filepath):
+            print(f"[DEBUG] PDF文件存在，开始提取文本")
+
+            # 方法1: 使用pdfplumber（更可靠）
+            try:
+                import pdfplumber
+                import re
+                print(f"[DEBUG] 使用pdfplumber提取PDF文本")
+                with pdfplumber.open(filepath) as pdf:
+                    pdf_total_pages = len(pdf.pages)
+                    print(f"[DEBUG] PDF总页数: {pdf_total_pages}")
+
+                    # 提取所有页面的文本
+                    for page_num in range(min(pdf_total_pages, 50)):  # 最多50页
+                        page = pdf.pages[page_num]
+                        try:
+                            text = page.extract_text()
+                            if text and text.strip():
+                                # 改进的文本清理
+                                lines = text.split('\n')
+                                cleaned_lines = []
+
+                                for line in lines:
+                                    line = line.strip()
+                                    # 跳过空行和太短的行
+                                    if not line or len(line) <= 1:
+                                        continue
+
+                                    # 过滤明显的乱码行
+                                    # 1. 检查是否包含过多特殊字符
+                                    special_char_ratio = sum(1 for c in line if ord(c) < 32 or ord(c) == 65533) / len(line)
+                                    if special_char_ratio > 0.3:  # 超过30%是控制字符或替换字符，跳过
+                                        continue
+
+                                    # 2. 检查是否包含足够的可读字符（字母、数字、中文）
+                                    readable_chars = sum(1 for c in line if c.isalnum() or '\u4e00' <= c <= '\u9fff')
+                                    if readable_chars < len(line) * 0.3:  # 可读字符少于30%，跳过
+                                        continue
+
+                                    # 3. 过滤纯符号或数字的行
+                                    if re.match(r'^[\d\s\-\+\=\.\/\|\\\(\)\[\]\{\}<>]+$', line):
+                                        continue
+
+                                    # 4. 替换常见的PDF伪影
+                                    line = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ufffd]', '', line)
+
+                                    cleaned_lines.append(line)
+
+                                # 将页面内容作为一个段落
+                                if cleaned_lines:
+                                    page_content = '\n'.join(cleaned_lines)
+                                    # 只要有足够的内容就添加
+                                    if len(page_content) > 30:
+                                        sections_to_translate.append({
+                                            'title': f'第{page_num + 1}页',
+                                            'content': page_content[:2500]  # 每页最多2500字符，留空间给翻译
+                                        })
+                                        has_pdf_content = True
+                                        print(f"[DEBUG] 第{page_num + 1}页提取成功，清理后内容长度: {len(page_content)}")
+                        except Exception as e:
+                            print(f"[DEBUG] 提取第{page_num + 1}页失败: {str(e)}")
+                            continue
+
+                print(f"[DEBUG] pdfplumber提取完成，共提取{len([s for s in sections_to_translate if '页' in s['title']])}页内容")
+
+            except Exception as e:
+                print(f"[DEBUG] pdfplumber提取失败: {str(e)}，尝试PyPDF2")
+                import traceback
+                traceback.print_exc()
+
+                # 方法2: 使用PyPDF2作为备用
+                try:
+                    import PyPDF2
+                    with open(filepath, 'rb') as pdf_file:
+                        pdf_reader = PyPDF2.PdfReader(pdf_file)
+                        pdf_total_pages = len(pdf_reader.pages)
+                        print(f"[DEBUG] 使用PyPDF2，PDF总页数: {pdf_total_pages}")
+
+                        for page_num in range(min(pdf_total_pages, 50)):
+                            page = pdf_reader.pages[page_num]
+                            try:
+                                text = page.extract_text()
+                                if text and text.strip():
+                                    lines = text.split('\n')
+                                    cleaned_lines = []
+                                    for line in lines:
+                                        line = line.strip()
+                                        if line and len(line) > 1:
+                                            cleaned_lines.append(line)
+
+                                    if cleaned_lines:
+                                        page_content = '\n'.join(cleaned_lines)
+                                        if len(page_content) > 50:
+                                            sections_to_translate.append({
+                                                'title': f'第{page_num + 1}页',
+                                                'content': page_content[:3000]
+                                            })
+                                            has_pdf_content = True
+                                            print(f"[DEBUG] PyPDF2第{page_num + 1}页提取成功")
+                            except Exception as e:
+                                print(f"[DEBUG] PyPDF2提取第{page_num + 1}页失败: {str(e)}")
+                                continue
+
+                except Exception as e2:
+                    print(f"[DEBUG] PyPDF2也失败了: {str(e2)}")
+                    import traceback
+                    traceback.print_exc()
+
+        else:
+            print(f"[DEBUG] PDF文件不存在或路径为空: filepath={filepath}, exists={os.path.exists(filepath) if filepath else False}")
+
+        if not has_pdf_content:
+            print(f"[WARNING] 未能从PDF提取任何内容，请检查PDF是否为扫描版图片")
+
+        # 如果没有从PDF提取到内容，使用数据库中的sections
+        if not has_pdf_content and sections:
+            try:
+                sections_list = json.loads(sections) if isinstance(sections, str) else sections
+                for section in sections_list[:15]:  # 限制章节数量
+                    section_title = section.get('title', '')
+                    section_number = section.get('number', '')
+                    section_content = section.get('content', '')
+
+                    if section_title or section_content:
+                        header = f"{section_number} {section_title}" if section_number else section_title
+                        sections_to_translate.append({
+                            'title': header,
+                            'content': section_content or ''
+                        })
+            except:
+                pass
+
+        # 构建翻译prompt - 要求分段返回带标记的翻译结果
+        sections_text = ""
+        for idx, section in enumerate(sections_to_translate):
+            sections_text += f"\n【{section['title']}】\n{section['content']}\n"
+
+        print(f"[DEBUG] 待翻译内容总长度: {len(sections_text)} 字符，共 {len(sections_to_translate)} 个部分")
+
+        # 限制翻译内容量，确保能完整输出
+        # 最多翻译前10个section，每个section最多2000字符
+        max_sections = 10
+        if len(sections_to_translate) > max_sections:
+            print(f"[DEBUG] 内容过多，只翻译前{max_sections}个部分")
+            sections_to_translate = sections_to_translate[:max_sections]
+            sections_text = ""
+            for idx, section in enumerate(sections_to_translate):
+                sections_text += f"\n【{section['title']}】\n{section['content']}\n"
+
+        prompt = f"""请将以下论文内容准确翻译成{lang_name}。
+
+{sections_text}
+
+翻译要求：
+1. 保持原有的结构，每个【标题】对应一个翻译段落
+2. 翻译后的内容必须使用【标题】格式标记，例如：【摘要】
+3. 对于PDF正文内容，请逐页完整翻译，保持原文的意思和结构
+4. 保持学术风格和专业术语的准确性
+5. 专业术语使用标准译法
+6. 直接输出翻译后的完整内容，每个翻译段用【】标记标题
+7. 不要添加任何说明或注释
+8. 必须翻译所有【标题】标记的内容，不要遗漏
+
+请开始翻译："""
+
+        messages = [{"role": "user", "content": prompt}]
+        # 增加max_tokens确保能输出完整翻译
+        response = self._call_api_with_retry(messages, timeout=180, max_tokens=16000)
+
+        # 构建原文分段（用于前端对照显示）
+        original_sections = []
+        for section in sections_to_translate:
+            original_sections.append({
+                'title': section['title'],
+                'content': section['content']
+            })
+
+        return {
+            'originalSections': original_sections,
+            'translatedContent': response
+        }
+
+    def chat_with_papers(self, question: str, papers_info: List[Dict], conversation_history: List[Dict] = None, model: str = "glm-4-flash") -> str:
+        """
+        与论文知识库对话
+
+        Args:
+            question: 用户问题
+            papers_info: 论文列表，每个论文包含title, abstract, keywords等字段
+            conversation_history: 对话历史
+            model: AI模型名称
+
+        Returns:
+            str: AI回答
+        """
+        # 构建知识库上下文
+        context_parts = ["以下是我上传的论文列表：\n"]
+
+        for idx, paper in enumerate(papers_info[:10], 1):  # 限制最多10篇论文
+            title = paper.get('title', '未知标题')
+            abstract = paper.get('abstract', '')[:300]  # 限制摘要长度
+            keywords = paper.get('keywords', '')
+
+            context_parts.append(f"""
+论文{idx}：
+标题：{title}
+摘要：{abstract}
+关键词：{keywords}
+""")
+
+        context = ''.join(context_parts)
+
+        # 构建对话历史
+        history_text = ""
+        if conversation_history:
+            for msg in conversation_history[-10]:  # 只保留最近10轮对话
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                role_name = '用户' if role == 'user' else '助手'
+                history_text += f"{role_name}: {content}\n"
+
+        # 构建完整prompt
+        prompt = f"""{context}
+
+{history_text if history_text else ''}
+
+用户: {question}
+助手:"""
+
+        messages = []
+
+        # 如果有对话历史，添加系统消息和历史消息
+        if conversation_history:
+            messages.append({
+                "role": "system",
+                "content": "你是一个专业的学术论文助手，基于用户上传的论文内容回答问题。请基于论文内容给出准确、详细的回答。如果论文中没有相关信息，请如实告知。"
+            })
+            # 添加历史对话
+            for msg in conversation_history[-10]:
+                messages.append({
+                    "role": msg.get('role', 'user'),
+                    "content": msg.get('content', '')
+                })
+            # 添加当前问题
+            messages.append({
+                "role": "user",
+                "content": prompt
+            })
+        else:
+            messages = [
+                {
+                    "role": "system",
+                    "content": "你是一个专业的学术论文助手，基于用户上传的论文内容回答问题。请基于论文内容给出准确、详细的回答。如果论文中没有相关信息，请如实告知。"
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+
+        response = self._call_api_with_retry(messages, model=model, timeout=60)
+        return response

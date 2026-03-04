@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request, get_jwt
 from werkzeug.utils import secure_filename
 from app.models import db, Paper
 from app.services.pdf_parser import PDFParser
@@ -256,4 +256,41 @@ def download_paper(paper_id):
         paper.filepath,
         as_attachment=True,
         download_name=paper.filename
+    )
+
+
+@bp.route('/<int:paper_id>/view', methods=['GET'])
+def view_paper(paper_id):
+    """在线查看论文PDF"""
+    # 支持从查询参数获取token（用于iframe）
+    token = request.args.get('token', '')
+    if token:
+        try:
+            # 手动验证token
+            from flask_jwt_extended import decode_token
+            decoded = decode_token(token)
+            user_id = decoded['sub']
+        except Exception as e:
+            return jsonify({'code': 401, 'message': 'Token无效'}), 401
+    else:
+        # 从Authorization header获取token
+        try:
+            verify_jwt_in_request()
+            user_id = get_jwt_identity()
+        except Exception as e:
+            return jsonify({'code': 401, 'message': '未授权'}), 401
+
+    paper = Paper.query.filter_by(id=paper_id, user_id=user_id).first()
+
+    if not paper:
+        return jsonify({'code': 404, 'message': '论文不存在'}), 404
+
+    if not os.path.exists(paper.filepath):
+        return jsonify({'code': 404, 'message': '文件不存在'}), 404
+
+    # 返回PDF文件用于在线预览
+    return send_file(
+        paper.filepath,
+        mimetype='application/pdf',
+        as_attachment=False
     )

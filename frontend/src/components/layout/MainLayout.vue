@@ -53,6 +53,11 @@
             <span>我的论文</span>
           </el-menu-item>
 
+          <el-menu-item index="/chat">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>知识库对话</span>
+          </el-menu-item>
+
           <el-menu-item index="/profile">
             <el-icon><User /></el-icon>
             <span>个人中心</span>

@@ -14,6 +14,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     avatar = db.Column(db.String(255), default='')
+    ai_model = db.Column(db.String(50), default='glm-4-flash')  # 用户选择的AI模型
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -36,6 +37,7 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'avatar': self.avatar,
+            'aiModel': self.ai_model,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

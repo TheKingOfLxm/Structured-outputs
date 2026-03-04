@@ -17,6 +17,10 @@
                 返回
               </el-button>
               <div class="header-actions">
+                <el-button type="warning" @click="goToAssistant">
+                  <el-icon><Reading /></el-icon>
+                  论文助手
+                </el-button>
                 <el-button type="primary" @click="goToGenerate">
                   <el-icon><MagicStick /></el-icon>
                   生成内容
@@ -269,6 +273,8 @@ const generatingReview = ref(false)
 const paper = ref(null)
 const summaryReport = ref(null)
 const reviewReport = ref(null)
+const pdfReaderVisible = ref(false)
+const pdfReaderUrl = ref('')
 
 // 计算是否有任何操作正在进行中
 const anyGenerating = computed(() => {
@@ -394,6 +400,10 @@ const handleReparse = async () => {
 
 const goBack = () => {
   router.push('/papers')
+}
+
+const goToAssistant = () => {
+  router.push(`/assistant/${route.params.id}`)
 }
 
 const goToGenerate = () => {
@@ -727,5 +737,16 @@ onMounted(() => {
   line-height: 1.8;
   margin: 0;
   white-space: pre-wrap;
+}
+
+/* PDF阅读器对话框样式 */
+:deep(.pdf-reader-dialog .el-dialog__body) {
+  padding: 0;
+  height: calc(100vh - 60px);
+}
+
+:deep(.pdf-reader-dialog .el-dialog__header) {
+  padding: 10px 20px;
+  margin-bottom: 0;
 }
 </style>

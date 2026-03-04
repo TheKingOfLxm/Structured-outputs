@@ -66,6 +66,18 @@ const routes = [
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
         meta: { title: '个人中心', requiresAuth: true }
+      },
+      {
+        path: 'assistant/:id',
+        name: 'PaperAssistant',
+        component: () => import('@/views/PaperAssistant.vue'),
+        meta: { title: '论文助手', requiresAuth: true }
+      },
+      {
+        path: 'chat',
+        name: 'ChatPage',
+        component: () => import('@/views/ChatPage.vue'),
+        meta: { title: '知识库对话', requiresAuth: true }
       }
     ]
   }

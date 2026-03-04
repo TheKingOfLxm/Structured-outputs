@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models import db, User
 
@@ -174,3 +174,73 @@ def change_password():
     except Exception as e:
         db.session.rollback()
         return jsonify({'code': 500, 'message': f'修改失败: {str(e)}'}), 500
+
+
+@bp.route('/ai-model', methods=['GET'])
+@jwt_required()
+def get_ai_models():
+    """获取可用的AI模型列表"""
+    models = current_app.config.get('AI_MODELS', {})
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'code': 404, 'message': '用户不存在'}), 404
+
+    # 为每个模型添加是否为当前选择的标记
+    models_list = []
+    for model_id, model_info in models.items():
+        models_list.append({
+            'id': model_id,
+            'name': model_info['name'],
+            'description': model_info['description'],
+            'maxTokens': model_info['max_tokens'],
+            'isSelected': model_id == user.ai_model
+        })
+
+    return jsonify({
+        'code': 200,
+        'message': '获取成功',
+        'data': {
+            'models': models_list,
+            'currentModel': user.ai_model
+        }
+    })
+
+
+@bp.route('/ai-model', methods=['PUT'])
+@jwt_required()
+def set_ai_model():
+    """设置用户选择的AI模型"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'code': 404, 'message': '用户不存在'}), 404
+
+    data = request.get_json()
+    model_id = data.get('modelId')
+
+    if not model_id:
+        return jsonify({'code': 400, 'message': '模型ID不能为空'}), 400
+
+    # 验证模型是否有效
+    models = current_app.config.get('AI_MODELS', {})
+    if model_id not in models:
+        return jsonify({'code': 400, 'message': '无效的模型ID'}), 400
+
+    # 更新用户选择的模型
+    user.ai_model = model_id
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'code': 200,
+            'message': '模型设置成功',
+            'data': {
+                'currentModel': model_id
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': f'设置失败: {str(e)}'}), 500

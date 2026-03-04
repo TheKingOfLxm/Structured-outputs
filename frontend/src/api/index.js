@@ -44,6 +44,23 @@ export const userApi = {
       method: 'put',
       data
     })
+  },
+
+  // 获取可用的AI模型列表
+  getAIModels() {
+    return request({
+      url: '/user/ai-model',
+      method: 'get'
+    })
+  },
+
+  // 设置AI模型
+  setAIModel(data) {
+    return request({
+      url: '/user/ai-model',
+      method: 'put',
+      data
+    })
   }
 }
 
@@ -92,6 +109,11 @@ export const paperApi = {
       url: `/paper/${id}/parse`,
       method: 'post'
     })
+  },
+
+  // 获取PDF阅读URL
+  getPaperViewUrl(id) {
+    return `/api/paper/${id}/view`
   }
 }
 
@@ -186,6 +208,36 @@ export const exportApi = {
       url: `/export/graph/${id}`,
       method: 'get',
       responseType: 'blob'
+    })
+  }
+}
+
+// 对话相关接口
+export const chatApi = {
+  // 翻译论文
+  translatePaper(data) {
+    return request({
+      url: '/chat/translate',
+      method: 'post',
+      data
+    })
+  },
+
+  // 与所有论文对话
+  chatWithPapers(data) {
+    return request({
+      url: '/chat/papers',
+      method: 'post',
+      data
+    })
+  },
+
+  // 与单篇论文对话
+  chatWithPaper(paperId, data) {
+    return request({
+      url: `/chat/papers/${paperId}`,
+      method: 'post',
+      data
     })
   }
 }
