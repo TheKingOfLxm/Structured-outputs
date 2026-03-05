@@ -12,42 +12,44 @@
           </div>
         </template>
 
-        <div v-if="paper" class="paper-summary">
-          <h3>{{ paper.title }}</h3>
-          <p>{{ paper.authors }}</p>
-        </div>
+        <div class="generate-body" v-loading="generating" element-loading-text="正在生成中，请稍候..." element-loading-background="rgba(255, 255, 255, 0.8)">
+          <div v-if="paper" class="paper-summary">
+            <h3>{{ paper.title }}</h3>
+            <p>{{ paper.authors }}</p>
+          </div>
 
-        <div class="generate-types">
-          <div
-            v-for="type in generateTypes"
-            :key="type.value"
-            class="type-item"
-            :class="{ active: selectedType === type.value }"
-            @click="selectType(type.value)"
-          >
-            <div class="type-icon">
-              <el-icon :size="32">
-                <component :is="type.icon" />
-              </el-icon>
-            </div>
-            <div class="type-info">
-              <h4>{{ type.label }}</h4>
-              <p>{{ type.description }}</p>
+          <div class="generate-types">
+            <div
+              v-for="type in generateTypes"
+              :key="type.value"
+              class="type-item"
+              :class="{ active: selectedType === type.value }"
+              @click="selectType(type.value)"
+            >
+              <div class="type-icon">
+                <el-icon :size="32">
+                  <component :is="type.icon" />
+                </el-icon>
+              </div>
+              <div class="type-info">
+                <h4>{{ type.label }}</h4>
+                <p>{{ type.description }}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="generate-actions">
-          <el-button
-            type="primary"
-            size="large"
-            :loading="generating"
-            :disabled="!selectedType"
-            @click="handleGenerate"
-          >
-            <el-icon><MagicStick /></el-icon>
-            开始生成
-          </el-button>
+          <div class="generate-actions">
+            <el-button
+              type="primary"
+              size="large"
+              :loading="generating"
+              :disabled="!selectedType"
+              @click="handleGenerate"
+            >
+              <el-icon><MagicStick /></el-icon>
+              开始生成
+            </el-button>
+          </div>
         </div>
       </el-card>
 
@@ -246,6 +248,11 @@ onMounted(() => {
 
 .generate-card {
   margin-bottom: 20px;
+}
+
+.generate-body {
+  min-height: 200px;
+  position: relative;
 }
 
 .card-header {

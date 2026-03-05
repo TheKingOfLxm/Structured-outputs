@@ -9,7 +9,7 @@
 
       <!-- 论文详情 -->
       <div v-else-if="paper">
-        <el-card class="detail-card">
+        <el-card class="detail-card" v-loading="reparsing" element-loading-text="正在重新解析，请稍候..." element-loading-background="rgba(255, 255, 255, 0.8)">
           <template #header>
             <div class="card-header">
               <el-button link @click="goBack">
@@ -59,7 +59,7 @@
         </el-card>
 
         <!-- 论文阅读报告（八元组） -->
-        <el-card v-if="summaryReport" class="summary-card">
+        <el-card v-if="summaryReport" class="summary-card" v-loading="generatingSummary" element-loading-text="正在生成阅读报告..." element-loading-background="rgba(255, 255, 255, 0.8)">
           <template #header>
             <div class="card-header">
               <el-icon><ChatDotRound /></el-icon>
@@ -115,7 +115,7 @@
         </el-card>
 
         <!-- 论文阅读报告空状态 -->
-        <el-card v-else class="summary-empty-card">
+        <el-card v-else class="summary-empty-card" v-loading="generatingSummary" element-loading-text="正在生成阅读报告..." element-loading-background="rgba(255, 255, 255, 0.8)">
           <template #header>
             <div class="card-header">
               <el-icon><ChatDotRound /></el-icon>
@@ -130,7 +130,7 @@
         </el-card>
 
         <!-- 论文评审报告 -->
-        <el-card v-if="reviewReport" class="review-card">
+        <el-card v-if="reviewReport" class="review-card" v-loading="generatingReview" element-loading-text="正在生成评审报告..." element-loading-background="rgba(255, 255, 255, 0.8)">
           <template #header>
             <div class="card-header">
               <el-icon><ChatDotRound /></el-icon>
@@ -193,7 +193,7 @@
         </el-card>
 
         <!-- 论文评审报告空状态 -->
-        <el-card v-else class="review-empty-card">
+        <el-card v-else class="review-empty-card" v-loading="generatingReview" element-loading-text="正在生成评审报告..." element-loading-background="rgba(255, 255, 255, 0.8)">
           <template #header>
             <div class="card-header">
               <el-icon><ChatDotRound /></el-icon>
