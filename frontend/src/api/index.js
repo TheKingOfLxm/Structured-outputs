@@ -111,9 +111,10 @@ export const paperApi = {
     })
   },
 
-  // 获取PDF阅读URL
+  // 获取PDF阅读URL（返回完整URL用于iframe）
   getPaperViewUrl(id) {
-    return `/api/paper/${id}/view`
+    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+    return `${baseURL}/paper/${id}/view`
   }
 }
 
