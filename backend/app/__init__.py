@@ -28,11 +28,13 @@ def create_app(config_name='development'):
     from app.api.paper import bp as paper_bp
     from app.api.generate import bp as generate_bp
     from app.api.chat import bp as chat_bp
+    from app.api.health import bp as health_bp
 
     app.register_blueprint(user_bp, url_prefix='/api/user')
     app.register_blueprint(paper_bp, url_prefix='/api/paper')
     app.register_blueprint(generate_bp, url_prefix='/api/generate')
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
+    app.register_blueprint(health_bp, url_prefix='/api')
 
     # 创建数据库表
     with app.app_context():

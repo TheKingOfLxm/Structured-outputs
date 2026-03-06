@@ -3,7 +3,8 @@ import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const request = axios.create({
-  baseURL: 'http://localhost:5000/api', // 后端API地址
+  // 优先使用环境变量，否则使用本地开发地址
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 180000 // 3分钟超时，翻译需要更长时间
 })
 
