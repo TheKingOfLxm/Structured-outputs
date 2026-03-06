@@ -59,12 +59,19 @@ class Config:
     DEFAULT_AI_MODEL = os.environ.get('DEFAULT_AI_MODEL') or 'glm-4-flash'
 
     # CORS配置
-    CORS_ORIGINS = [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'http://localhost:5176',
-        'http://127.0.0.1:5176'
-    ]
+    # 从环境变量读取前端URL，支持多个域名（逗号分隔）
+    frontend_url = os.environ.get('FRONTEND_URL', '')
+    if frontend_url:
+        # 生产环境：使用环境变量配置的前端域名
+        CORS_ORIGINS = [url.strip() for url in frontend_url.split(',')]
+    else:
+        # 开发环境：本地地址
+        CORS_ORIGINS = [
+            'http://localhost:5173',
+            'http://127.0.0.1:5173',
+            'http://localhost:5176',
+            'http://127.0.0.1:5176'
+        ]
 
 
 class DevelopmentConfig(Config):
