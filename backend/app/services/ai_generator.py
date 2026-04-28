@@ -671,12 +671,30 @@ class AIGenerator:
 
     def generate_summary(self, paper_info: Dict, model: str = "glm-4-flash") -> Dict:
         """生成论文阅读报告（八元组）"""
+        # 构建包含章节内容的详细prompt
+        sections_text = ""
+        sections = paper_info.get('sections', '')
+        if sections:
+            try:
+                sections_list = json.loads(sections) if isinstance(sections, str) else sections
+                if sections_list:
+                    sections_text = "\n主要章节内容：\n"
+                    for section in sections_list[:8]:
+                        section_title = section.get('title', '')
+                        section_number = section.get('number', '')
+                        section_content = section.get('content', '')[:500]
+                        header = f"{section_number} {section_title}" if section_number else section_title
+                        sections_text += f"- {header}: {section_content}\n"
+            except:
+                pass
+
         prompt = f"""请基于以下论文信息，生成一个结构化的论文阅读报告，必须返回标准JSON格式，包含以下八个字段：
 
 论文标题: {paper_info.get('title', '')}
 作者: {paper_info.get('authors', '')}
 摘要: {paper_info.get('abstract', '')}
-
+关键词: {paper_info.get('keywords', '')}
+{sections_text}
 要求输出JSON格式（只返回JSON，不要其他说明）：
 {{
   "abstract": "论文摘要概括",
@@ -694,6 +712,8 @@ class AIGenerator:
         messages = [{"role": "user", "content": prompt}]
         response = self._call_api_with_retry(messages)
 
+        print(f"[DEBUG] generate_summary API响应: {response[:500] if response else 'None'}")
+
         try:
             # 尝试解析JSON
             if "```json" in response:
@@ -708,7 +728,9 @@ class AIGenerator:
                 if field not in result:
                     result[field] = ""
             return result
-        except:
+        except Exception as e:
+            print(f"[DEBUG] generate_summary JSON解析失败: {e}")
+            print(f"[DEBUG] 原始响应内容: {response[:300] if response else 'empty'}")
             # 如果解析失败，返回默认结构
             return {
                 "abstract": paper_info.get('abstract', '')[:200] + "...",

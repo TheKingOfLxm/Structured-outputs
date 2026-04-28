@@ -3,13 +3,98 @@ import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Paper, GenerateRecord
+from app.models import db, Paper, GenerateRecord, KnowledgeBase
 from app.services.ai_generator import AIGenerator
 
 # 配置日志
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('chat', __name__)
+
+
+# ==================== 知识库管理接口 ====================
+
+@bp.route('/knowledge-bases', methods=['GET'])
+@jwt_required()
+def get_knowledge_bases():
+    """获取用户的所有知识库"""
+    user_id = get_jwt_identity()
+    kbs = KnowledgeBase.query.filter_by(user_id=user_id).order_by(KnowledgeBase.created_at.desc()).all()
+    return jsonify({
+        'code': 200,
+        'message': '获取成功',
+        'data': {'list': [kb.to_dict() for kb in kbs]}
+    })
+
+
+@bp.route('/knowledge-bases', methods=['POST'])
+@jwt_required()
+def create_knowledge_base():
+    """创建知识库"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'code': 400, 'message': '知识库名称不能为空'}), 400
+
+    paper_ids = data.get('paperIds', [])
+    kb = KnowledgeBase(
+        user_id=user_id,
+        name=name,
+        type=data.get('type', 'personal'),
+        description=data.get('description', ''),
+    )
+    kb.set_paper_ids(paper_ids)
+    db.session.add(kb)
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '创建成功',
+        'data': kb.to_dict()
+    })
+
+
+@bp.route('/knowledge-bases/<int:kb_id>', methods=['PUT'])
+@jwt_required()
+def update_knowledge_base(kb_id):
+    """更新知识库"""
+    user_id = get_jwt_identity()
+    kb = KnowledgeBase.query.filter_by(id=kb_id, user_id=user_id).first()
+    if not kb:
+        return jsonify({'code': 404, 'message': '知识库不存在'}), 404
+
+    data = request.get_json()
+    if 'name' in data:
+        kb.name = data['name']
+    if 'type' in data:
+        kb.type = data['type']
+    if 'description' in data:
+        kb.description = data['description']
+    if 'paperIds' in data:
+        kb.set_paper_ids(data['paperIds'])
+
+    db.session.commit()
+    return jsonify({
+        'code': 200,
+        'message': '更新成功',
+        'data': kb.to_dict()
+    })
+
+
+@bp.route('/knowledge-bases/<int:kb_id>', methods=['DELETE'])
+@jwt_required()
+def delete_knowledge_base(kb_id):
+    """删除知识库"""
+    user_id = get_jwt_identity()
+    kb = KnowledgeBase.query.filter_by(id=kb_id, user_id=user_id).first()
+    if not kb:
+        return jsonify({'code': 404, 'message': '知识库不存在'}), 404
+
+    db.session.delete(kb)
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '删除成功'})
 
 
 @bp.route('/translate', methods=['POST'])
@@ -143,16 +228,17 @@ def chat_with_papers():
 
     question = data.get('question', '')
     conversation_history = data.get('history', [])
+    paper_ids = data.get('paperIds', [])
 
     if not question:
         return jsonify({'code': 400, 'message': '问题不能为空'}), 400
 
     try:
-        # 获取用户的所有已解析论文
-        papers = Paper.query.filter_by(
-            user_id=user_id,
-            status='parsed'
-        ).order_by(Paper.upload_time.desc()).all()
+        # 获取用户的已解析论文
+        query = Paper.query.filter_by(user_id=user_id, status='parsed')
+        if paper_ids:
+            query = query.filter(Paper.id.in_(paper_ids))
+        papers = query.order_by(Paper.upload_time.desc()).all()
 
         if not papers:
             return jsonify({

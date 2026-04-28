@@ -95,6 +95,47 @@ class Paper(db.Model):
         }
 
 
+class KnowledgeBase(db.Model):
+    """知识库模型"""
+    __tablename__ = 'knowledge_bases'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(20), default='personal')
+    description = db.Column(db.Text, default='')
+    paper_ids = db.Column(db.Text, default='[]')  # JSON数组存储论文ID
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系
+    user = db.relationship('User', backref=db.backref('knowledge_bases', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def get_paper_ids(self):
+        import json
+        try:
+            return json.loads(self.paper_ids) if self.paper_ids else []
+        except:
+            return []
+
+    def set_paper_ids(self, ids):
+        import json
+        self.paper_ids = json.dumps(ids)
+
+    def to_dict(self):
+        paper_ids = self.get_paper_ids()
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'description': self.description,
+            'paperIds': paper_ids,
+            'paperCount': len(paper_ids),
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 class GenerateRecord(db.Model):
     """生成记录模型"""
     __tablename__ = 'generate_records'
