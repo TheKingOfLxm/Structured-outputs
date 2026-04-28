@@ -34,108 +34,123 @@
       </div>
     </div>
 
-    <!-- 右侧主内容区 -->
-    <div class="main-content">
-      <!-- 顶部状态栏 -->
-      <div class="status-bar">
-        <div class="current-kb">
+    <!-- 中间：PDF预览区 -->
+    <div class="center-panel">
+      <!-- 顶部信息栏 -->
+      <div class="center-header">
+        <div class="center-header-left">
           <el-icon><Collection /></el-icon>
-          <span>{{ currentKb?.name || '默认知识库' }}</span>
+          <span>{{ currentKb?.name || '选择知识库' }}</span>
           <el-tag size="small" type="info">{{ currentKb?.paperCount || 0 }} 篇论文</el-tag>
         </div>
-        <div class="action-buttons">
-          <el-button :icon="Setting" @click="modelDialogVisible = true">模型管理</el-button>
+        <div class="center-header-right">
+          <el-button v-if="currentPdf" text @click="currentPdf = null">
+            <el-icon><ArrowLeft /></el-icon>返回列表
+          </el-button>
         </div>
       </div>
 
-      <!-- 聊天内容区 -->
-      <div class="chat-content">
-        <!-- 欢迎页/问题建议 -->
-        <div v-if="messages.length === 0" class="welcome-container">
-          <!-- 搜索框 -->
-          <div class="search-box">
-            <el-input
-              v-model="searchQuery"
-              size="large"
-              placeholder="搜索论文中的知识点..."
-              :prefix-icon="Search"
-              @keyup.enter="handleSearch"
-              clearable
-            />
-          </div>
+      <!-- PDF预览 -->
+      <div v-if="currentPdf" class="center-pdf-viewer">
+        <PdfReader :url="pdfPreviewUrl" />
+      </div>
 
-          <!-- 问题建议 -->
-          <div class="suggestions-container">
-            <h3 class="suggestions-title">你可以问：</h3>
-            <div class="suggestions-grid">
-              <div
-                v-for="(suggestion, index) in suggestions"
-                :key="index"
-                class="suggestion-card"
-                @click="askSuggestion(suggestion.question)"
-              >
-                <div class="suggestion-icon">
-                  <el-icon>
-                    <component :is="suggestion.icon" />
-                  </el-icon>
-                </div>
-                <div class="suggestion-text">{{ suggestion.question }}</div>
-              </div>
+      <!-- 论文列表 -->
+      <div v-else class="center-paper-list">
+        <div v-if="kbPapersLoading" class="center-loading">
+          <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+          <p>正在加载论文列表...</p>
+        </div>
+        <div v-else-if="kbPapers.length === 0" class="center-empty">
+          <el-empty :description="currentKb ? '该知识库暂无论文' : '请先选择一个知识库'" />
+        </div>
+        <div v-else class="center-paper-grid">
+          <div
+            v-for="paper in kbPapers"
+            :key="paper.id"
+            class="paper-card"
+            @click="openPdf(paper)"
+          >
+            <div class="paper-card-icon">
+              <el-icon :size="36"><Document /></el-icon>
+            </div>
+            <div class="paper-card-body">
+              <h4 class="paper-card-title">{{ paper.title || '未命名论文' }}</h4>
+              <p class="paper-card-authors">{{ formatAuthors(paper.authors) }}</p>
+            </div>
+            <div class="paper-card-footer">
+              <el-tag size="small" type="primary">点击预览</el-tag>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- 空状态提示 -->
-          <div v-if="currentKb?.paperCount === 0" class="empty-state">
-            <el-icon :size="60"><DocumentDelete /></el-icon>
-            <p>此知识库暂无论文</p>
-            <el-button type="primary" @click="openCreateDialog">添加论文</el-button>
+    <!-- 右侧：AI对话 -->
+    <div class="right-sidebar">
+      <div class="chat-header">
+        <el-icon><ChatDotRound /></el-icon>
+        <span>AI 对话</span>
+        <el-button v-if="messages.length > 0" link size="small" @click="clearChat">
+          <el-icon><Delete /></el-icon>
+        </el-button>
+      </div>
+
+      <!-- 对话消息列表 -->
+      <div class="chat-messages" ref="messagesContainer">
+        <div v-if="messages.length === 0" class="chat-welcome">
+          <el-icon :size="32" color="#409eff"><ChatDotRound /></el-icon>
+          <p>向 AI 提问关于论文的问题</p>
+          <div class="quick-questions">
+            <el-tag
+              v-for="(suggestion, index) in suggestions"
+              :key="index"
+              class="quick-tag"
+              @click="askSuggestion(suggestion.question)"
+            >
+              {{ suggestion.question }}
+            </el-tag>
           </div>
         </div>
 
-        <!-- 对话消息列表 -->
-        <div v-else class="messages-container" ref="messagesContainer">
-          <div
-            v-for="(message, index) in messages"
-            :key="index"
-            class="message-item"
-            :class="message.role"
-          >
-            <div class="message-avatar" v-if="message.role === 'user'">
-              <el-icon><User /></el-icon>
-            </div>
-            <div class="message-content">
-              <div class="message-bubble" v-html="formatMessage(message.content)"></div>
-              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-            </div>
-            <div class="message-avatar" v-if="message.role === 'assistant'">
-              <el-icon><ChatDotRound /></el-icon>
-            </div>
+        <div
+          v-for="(message, index) in messages"
+          :key="index"
+          class="msg-item"
+          :class="message.role"
+        >
+          <div class="msg-avatar" v-if="message.role === 'assistant'">
+            <el-icon><ChatDotRound /></el-icon>
           </div>
+          <div class="msg-body">
+            <div class="msg-bubble" v-html="formatMessage(message.content)"></div>
+            <div class="msg-time">{{ formatTime(message.timestamp) }}</div>
+          </div>
+          <div class="msg-avatar user-avatar" v-if="message.role === 'user'">
+            <el-icon><User /></el-icon>
+          </div>
+        </div>
 
-          <!-- 加载中 -->
-          <div v-if="loading" class="message-item assistant">
-            <div class="message-avatar">
-              <el-icon><ChatDotRound /></el-icon>
-            </div>
-            <div class="message-content">
-              <div class="message-bubble loading">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
+        <div v-if="loading" class="msg-item assistant">
+          <div class="msg-avatar">
+            <el-icon><ChatDotRound /></el-icon>
+          </div>
+          <div class="msg-body">
+            <div class="msg-bubble loading-dots">
+              <span></span><span></span><span></span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 底部输入区 -->
-      <div class="input-area">
-        <div class="input-wrapper">
+      <div class="chat-input-area">
+        <div class="chat-input-wrapper">
           <el-input
             v-model="inputMessage"
             type="textarea"
             :rows="1"
-            :autosize="{ minRows: 1, maxRows: 4 }"
+            :autosize="{ minRows: 1, maxRows: 3 }"
             placeholder="输入你的问题..."
             @keydown.enter.exact="sendMessage"
             @keydown.enter.shift.prevent
@@ -148,15 +163,7 @@
             :loading="loading"
             :disabled="!inputMessage.trim() || !currentKb?.paperCount"
             circle
-            size="large"
           />
-        </div>
-        <div class="input-footer">
-          <span class="hint">按 Enter 发送，Shift + Enter 换行</span>
-          <el-button v-if="messages.length > 0" link type="danger" @click="clearChat">
-            <el-icon><Delete /></el-icon>
-            清空对话
-          </el-button>
         </div>
       </div>
     </div>
@@ -265,11 +272,12 @@ import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Collection, Search, User, ChatDotRound, Promotion,
-  Delete, DocumentDelete, Reading, TrendCharts, Star, QuestionFilled,
-  Setting, Plus, MoreFilled
+  Collection, User, ChatDotRound, Promotion,
+  Delete,
+  Plus, MoreFilled, Document, Loading, ArrowLeft
 } from '@element-plus/icons-vue'
 import { paperApi, chatApi } from '@/api'
+import PdfReader from '@/components/PdfReader.vue'
 
 const router = useRouter()
 const messages = ref([])
@@ -286,11 +294,8 @@ const editingKb = ref(null)
 const kbFormRef = ref(null)
 
 // 知识库数据
-const knowledgeBases = ref([
-  { id: 1, name: '默认知识库', paperCount: 4, type: 'personal', paperIds: [] },
-  { id: 2, name: '机器学习论文', paperCount: 2, type: 'personal', paperIds: [] }
-])
-const currentKbId = ref(1)
+const knowledgeBases = ref([])
+const currentKbId = ref(null)
 const allPapers = ref([])
 
 // 当前知识库
@@ -320,6 +325,15 @@ const kbForm = ref({
   description: ''
 })
 
+// 中间面板 - 论文列表和PDF预览
+const kbPapers = ref([])
+const kbPapersLoading = ref(false)
+const currentPdf = ref(null)
+const pdfPreviewUrl = computed(() => {
+  if (!currentPdf.value) return ''
+  return paperApi.getPaperViewUrl(currentPdf.value.id)
+})
+
 const kbRules = {
   name: [{ required: true, message: '请输入知识库名称', trigger: 'blur' }],
   type: [{ required: true, message: '请选择知识库类型', trigger: 'change' }]
@@ -338,18 +352,68 @@ const loadAllPapers = async () => {
   try {
     const res = await paperApi.getPaperList({ page: 1, pageSize: 100 })
     allPapers.value = res.data.list.filter(p => p.status === 'parsed')
-    // 更新默认知识库的论文数量
-    knowledgeBases.value[0].paperCount = allPapers.value.length
   } catch (error) {
     console.error('加载论文列表失败:', error)
+  }
+}
+
+// 加载知识库列表
+const loadKnowledgeBases = async () => {
+  try {
+    const res = await chatApi.getKnowledgeBases()
+    knowledgeBases.value = res.data.list
+    if (!currentKbId.value && knowledgeBases.value.length > 0) {
+      currentKbId.value = knowledgeBases.value[0].id
+    }
+  } catch (error) {
+    console.error('加载知识库列表失败:', error)
   }
 }
 
 // 切换知识库
 const switchKb = (kbId) => {
   currentKbId.value = kbId
+  currentPdf.value = null
   clearChat()
+  loadKbPapers()
   ElMessage.success(`已切换到"${currentKb.value?.name}"`)
+}
+
+// 加载知识库论文列表
+const loadKbPapers = async () => {
+  if (!currentKb.value?.paperIds?.length) {
+    kbPapers.value = []
+    return
+  }
+  kbPapersLoading.value = true
+  try {
+    const promises = currentKb.value.paperIds.map(id => paperApi.getPaperDetail(id))
+    const results = await Promise.all(promises)
+    kbPapers.value = results.map(res => res.data)
+  } catch (error) {
+    console.error('加载知识库论文失败:', error)
+    ElMessage.error('加载论文列表失败')
+  } finally {
+    kbPapersLoading.value = false
+  }
+}
+
+// 打开PDF预览
+const openPdf = (paper) => {
+  currentPdf.value = paper
+}
+
+// 格式化作者
+const formatAuthors = (authors) => {
+  if (!authors) return '未知作者'
+  if (Array.isArray(authors)) return authors.join(', ')
+  if (typeof authors === 'string') {
+    try {
+      const parsed = JSON.parse(authors)
+      if (Array.isArray(parsed)) return parsed.join(', ')
+    } catch (e) { /* ignore */ }
+  }
+  return authors
 }
 
 // 知识库操作
@@ -361,10 +425,10 @@ const handleKbAction = async (command, kb) => {
       await ElMessageBox.confirm(`确定要删除知识库"${kb.name}"吗？`, '提示', {
         type: 'warning'
       })
-      const index = knowledgeBases.value.findIndex(k => k.id === kb.id)
-      knowledgeBases.value.splice(index, 1)
+      await chatApi.deleteKnowledgeBase(kb.id)
+      await loadKnowledgeBases()
       if (currentKbId.value === kb.id) {
-        currentKbId.value = knowledgeBases.value[0]?.id
+        currentKbId.value = knowledgeBases.value[0]?.id || null
       }
       ElMessage.success('删除成功')
     } catch {
@@ -417,39 +481,31 @@ const saveKb = async () => {
   }
 
   saving.value = true
-
-  setTimeout(() => {
+  try {
     if (editingKb.value) {
-      // 编辑现有知识库
-      const index = knowledgeBases.value.findIndex(k => k.id === editingKb.value.id)
-      if (index !== -1) {
-        knowledgeBases.value[index] = {
-          ...knowledgeBases.value[index],
-          name: kbForm.value.name,
-          type: kbForm.value.type,
-          paperCount: kbForm.value.selectedPapers.length,
-          paperIds: kbForm.value.selectedPapers,
-          description: kbForm.value.description
-        }
-      }
-      ElMessage.success('知识库已更新')
-    } else {
-      // 创建新知识库
-      const newId = Math.max(...knowledgeBases.value.map(k => k.id)) + 1
-      knowledgeBases.value.push({
-        id: newId,
+      await chatApi.updateKnowledgeBase(editingKb.value.id, {
         name: kbForm.value.name,
         type: kbForm.value.type,
-        paperCount: kbForm.value.selectedPapers.length,
+        paperIds: kbForm.value.selectedPapers,
+        description: kbForm.value.description
+      })
+      ElMessage.success('知识库已更新')
+    } else {
+      await chatApi.createKnowledgeBase({
+        name: kbForm.value.name,
+        type: kbForm.value.type,
         paperIds: kbForm.value.selectedPapers,
         description: kbForm.value.description
       })
       ElMessage.success(`知识库"${kbForm.value.name}"创建成功`)
     }
-
+    await loadKnowledgeBases()
     closeCreateDialog()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '操作失败')
+  } finally {
     saving.value = false
-  }, 500)
+  }
 }
 
 // 发送消息
@@ -486,7 +542,8 @@ const sendMessage = async () => {
 
     const res = await chatApi.chatWithPapers({
       question,
-      history
+      history,
+      paperIds: currentKb.value?.paperIds || []
     })
 
     messages.value.push({
@@ -578,19 +635,21 @@ const addModel = () => {
 
 onMounted(() => {
   loadAllPapers()
+  loadKnowledgeBases()
 })
 </script>
 
 <style scoped>
+/* ===== 三栏布局 ===== */
 .knowledge-chat-page {
   height: 100%;
   display: flex;
   background: #f5f7fa;
 }
 
-/* 左侧边栏 */
+/* ===== 左侧：知识库列表 ===== */
 .sidebar {
-  width: 280px;
+  width: 240px;
   background: white;
   border-right: 1px solid #e4e7ed;
   display: flex;
@@ -598,7 +657,7 @@ onMounted(() => {
 }
 
 .sidebar-header {
-  padding: 20px;
+  padding: 16px;
   border-bottom: 1px solid #e4e7ed;
   display: flex;
   justify-content: space-between;
@@ -607,26 +666,25 @@ onMounted(() => {
 
 .sidebar-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   color: #303133;
 }
 
 .kb-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 8px;
 }
 
 .kb-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 10px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 8px;
-  position: relative;
+  transition: all 0.2s;
+  margin-bottom: 4px;
 }
 
 .kb-item:hover {
@@ -639,8 +697,8 @@ onMounted(() => {
 }
 
 .kb-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -656,17 +714,17 @@ onMounted(() => {
 }
 
 .kb-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #303133;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .kb-meta {
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
   margin: 0;
 }
@@ -674,7 +732,7 @@ onMounted(() => {
 .more-btn {
   color: #909399;
   cursor: pointer;
-  padding: 4px;
+  padding: 2px;
   border-radius: 4px;
 }
 
@@ -682,304 +740,310 @@ onMounted(() => {
   background: #e4e7ed;
 }
 
-/* 右侧主内容 */
-.main-content {
+/* ===== 中间：PDF预览区 ===== */
+.center-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-right: 1px solid #e4e7ed;
 }
 
-/* 状态栏 */
-.status-bar {
-  padding: 16px 24px;
+.center-header {
+  padding: 12px 20px;
   background: white;
   border-bottom: 1px solid #e4e7ed;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 48px;
 }
 
-.current-kb {
+.center-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  font-size: 14px;
   color: #606266;
 }
 
-.current-kb .el-icon {
+.center-header-left .el-icon {
   color: #409eff;
-  font-size: 18px;
 }
 
-/* 聊天内容区 */
-.chat-content {
+.center-pdf-viewer {
   flex: 1;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
-/* 欢迎容器 */
-.welcome-container {
+.center-paper-list {
   flex: 1;
   overflow-y: auto;
-  padding: 40px 24px;
+  padding: 20px;
+}
+
+.center-loading,
+.center-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #909399;
 }
 
-.search-box {
-  width: 100%;
-  max-width: 600px;
-  margin-bottom: 40px;
+.center-loading p {
+  margin-top: 12px;
+  font-size: 14px;
 }
 
-.search-box :deep(.el-input__wrapper) {
-  border-radius: 24px;
-  padding: 8px 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.search-box :deep(.el-input__inner) {
-  font-size: 15px;
-}
-
-.suggestions-container {
-  width: 100%;
-  max-width: 800px;
-}
-
-.suggestions-title {
-  font-size: 16px;
-  color: #303133;
-  margin: 0 0 20px;
-  text-align: center;
-}
-
-.suggestions-grid {
+.center-paper-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
 
-.suggestion-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
+.paper-card {
   background: white;
-  border-radius: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  padding: 20px;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.suggestion-card:hover {
+.paper-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.12);
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.15);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-.suggestion-card:hover .suggestion-icon,
-.suggestion-card:hover .suggestion-text {
-  color: white;
-}
-
-.suggestion-icon {
+.paper-card-icon {
   width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #ecf5ff;
-  border-radius: 12px;
+  border-radius: 10px;
   color: #409eff;
-  font-size: 24px;
-  flex-shrink: 0;
-  transition: all 0.3s;
 }
 
-.suggestion-text {
-  font-size: 15px;
-  color: #303133;
+.paper-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.paper-card-title {
+  font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s;
+  color: #303133;
+  margin: 0 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
 }
 
-/* 空状态 */
-.empty-state {
+.paper-card-authors {
+  font-size: 12px;
+  color: #909399;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paper-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ===== 右侧：AI对话 ===== */
+.right-sidebar {
+  width: 360px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.chat-header .el-icon {
+  color: #409eff;
+}
+
+.chat-header span {
+  flex: 1;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.chat-welcome {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 60px;
-  color: #909399;
-}
-
-.empty-state .el-icon {
-  color: #c0c4cc;
-  margin-bottom: 20px;
-}
-
-.empty-state p {
-  font-size: 15px;
-  margin: 0 0 20px;
-}
-
-/* 消息容器 */
-.messages-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-.message-item {
-  display: flex;
+  padding: 32px 16px;
   gap: 12px;
-  margin-bottom: 24px;
+}
+
+.chat-welcome p {
+  font-size: 13px;
+  color: #909399;
+  margin: 0;
+}
+
+.quick-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.quick-tag {
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.msg-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
   align-items: flex-start;
 }
 
-.message-item.user {
+.msg-item.user {
   flex-direction: row-reverse;
 }
 
-.message-avatar {
-  width: 40px;
-  height: 40px;
+.msg-avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: #ecf5ff;
+  color: #409eff;
+  font-size: 14px;
 }
 
-.message-item.user .message-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.msg-avatar.user-avatar {
+  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
 }
 
-.message-item.assistant .message-avatar {
-  background: #ecf5ff;
-  color: #409eff;
+.msg-body {
+  max-width: 85%;
 }
 
-.message-content {
-  max-width: 70%;
-}
-
-.message-item.user .message-content {
+.msg-item.user .msg-body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
 }
 
-.message-bubble {
-  padding: 14px 18px;
-  border-radius: 16px;
-  line-height: 1.7;
+.msg-bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.6;
   word-break: break-word;
-  font-size: 15px;
+  font-size: 13px;
 }
 
-.message-item.user .message-bubble {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.msg-item.user .msg-bubble {
+  background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
-  border-bottom-right-radius: 6px;
+  border-bottom-right-radius: 4px;
 }
 
-.message-item.assistant .message-bubble {
-  background: white;
+.msg-item.assistant .msg-bubble {
+  background: #f5f7fa;
   color: #303133;
-  border-bottom-left-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-bottom-left-radius: 4px;
 }
 
-.message-bubble.loading {
+.loading-dots {
   display: flex;
-  gap: 6px;
-  padding: 18px 24px;
+  gap: 4px;
+  padding: 12px 16px;
 }
 
-.message-bubble.loading span {
-  width: 10px;
-  height: 10px;
+.loading-dots span {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #409eff;
   animation: bounce 1.4s infinite ease-in-out both;
 }
 
-.message-bubble.loading span:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.message-bubble.loading span:nth-child(2) {
-  animation-delay: -0.16s;
-}
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
 
 @keyframes bounce {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
 }
 
-.message-time {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 6px;
+.msg-time {
+  font-size: 11px;
+  color: #c0c4cc;
+  margin-top: 4px;
 }
 
-.message-item.user .message-time {
+.msg-item.user .msg-time {
   text-align: right;
 }
 
-/* 输入区 */
-.input-area {
-  padding: 16px 24px 20px;
-  background: white;
+.chat-input-area {
+  padding: 12px;
   border-top: 1px solid #e4e7ed;
 }
 
-.input-wrapper {
+.chat-input-wrapper {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: flex-end;
-  margin-bottom: 8px;
 }
 
-.input-wrapper .el-textarea {
+.chat-input-wrapper .el-textarea {
   flex: 1;
 }
 
-.input-wrapper :deep(.el-textarea__inner) {
-  border-radius: 20px;
-  padding: 12px 16px;
+.chat-input-wrapper :deep(.el-textarea__inner) {
+  border-radius: 16px;
+  padding: 8px 14px;
   resize: none;
+  font-size: 13px;
 }
 
-.input-wrapper .el-button {
+.chat-input-wrapper .el-button {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
 }
 
-.input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.hint {
-  font-size: 12px;
-  color: #909399;
-}
-
-/* 模型管理 */
+/* ===== 弹窗通用 ===== */
 .model-list {
   max-height: 200px;
   overflow-y: auto;
@@ -1001,22 +1065,10 @@ onMounted(() => {
   gap: 12px;
 }
 
-.model-name {
-  font-weight: 500;
-  color: #303133;
-}
+.model-name { font-weight: 500; color: #303133; }
+.model-api { font-size: 12px; color: #909399; }
+.model-actions { display: flex; gap: 8px; }
 
-.model-api {
-  font-size: 12px;
-  color: #909399;
-}
-
-.model-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* 论文选项 */
 .paper-option {
   display: flex;
   justify-content: space-between;
@@ -1036,14 +1088,10 @@ onMounted(() => {
   margin-left: 12px;
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-  .suggestions-grid {
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .center-paper-grid {
     grid-template-columns: 1fr;
-  }
-
-  .message-content {
-    max-width: 85%;
   }
 }
 </style>
